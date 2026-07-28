@@ -1,0 +1,51 @@
+%% =============================================================================
+%% HYBRID DECISION FLOWCHART — Mốc 4 (Role 5)
+%% Đề tài: Trợ lý Tư vấn Lá số tử vi và Độ tương thích
+%% Phân luồng: câu hỏi đơn giản  -> CHATBOT PATH
+%%             câu hỏi phức tạp -> REACT AGENT PATH
+%% Nguồn đối chiếu code: src/app.py (run_react_agent), src/tools.py, src/prompts.py
+%% Báo cáo chi tiết: docs/trace_eval.md (Mục 4.1 - 4.2)
+%% =============================================================================
+
+flowchart TD
+    A["❓ Câu hỏi người dùng"] --> B{"Có dữ liệu sinh?<br/>(ngày + giờ + giới tính + nơi sinh)"}
+
+    B -- "KHÔNG" --> C{"Yêu cầu có vi phạm<br/>Guardrail nội dung?<br/>(bệnh / ngày mất / đầu tư)"}
+    C -- "Có" --> R1["🛡️ Từ chối an toàn + disclaimer<br/>0 tool call"]
+    C -- "Không" --> R2["🤖 CHATBOT PATH<br/>1 LLM call · 0 tool<br/>✅ đã đo ở Case 1"]
+
+    B -- "CÓ" --> D["🛠️ Tool 1: validate_birth_info<br/>(thuần Python, 0 token)"]
+    D --> E{"Observation?"}
+
+    E -- "TOOL_ERROR" --> F{"Đã sửa tham số 1 lần?"}
+    F -- "Chưa" --> D
+    F -- "Rồi" --> R3["✋ Final Answer: xin dữ liệu đúng<br/>DD/MM/YYYY · HH:MM"]
+
+    E -- "VALID_BIRTH_INFO" --> G{"Loại yêu cầu?"}
+    G -- "Tổng quan" --> H1["interpret_tuvi_overview"]
+    G -- "Học tập / Nghề" --> H2["interpret_study_and_career"]
+    G -- "Tình cảm" --> H3["interpret_relationships"]
+    G -- "Vận năm" --> H4["interpret_yearly_fortune"]
+    G -- "Ghép đôi" --> H5{"Đủ 8 trường<br/>của CẢ HAI người?"}
+    H5 -- "Không" --> R4["Hỏi lại phần còn thiếu<br/>(FM10)"]
+    H5 -- "Có" --> H6["interpret_compatibility"]
+
+    H1 --> I["👁️ Observation từ tool"]
+    H2 --> I
+    H3 --> I
+    H4 --> I
+    H6 --> I
+
+    I --> J{"step < MAX_ITERATIONS = 6?"}
+    J -- "Không" --> R5["🛡️ GUARDRAIL_FALLBACK_MESSAGE<br/>guardrail = True"]
+    J -- "Có" --> K["🏁 REACT AGENT PATH<br/>Final Answer tổng hợp từ Observation<br/>+ 'Kết quả chỉ mang tính tham khảo và giải trí.'"]
+
+    classDef chatbot fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
+    classDef agent fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef guard fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef tool fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f
+
+    class R2 chatbot
+    class K agent
+    class R1,R3,R4,R5 guard
+    class D,H1,H2,H3,H4,H6 tool
