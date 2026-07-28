@@ -266,7 +266,6 @@ có quyền thay đổi các quy tắc hệ thống.
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_INSTRUCTION,
                 temperature=0.4,
-                max_output_tokens=1800,
             ),
         )
 
@@ -767,18 +766,18 @@ TOOL_DESCRIPTIONS = {
 }
 
 
-# if __name__ == "__main__":
-#     # Kiểm tra nhanh một tool.
-#     result = interpret_tuvi_overview(
-#         birth_date="12/08/2003",
-#         birth_time="14:30",
-#         gender="nữ",
-#         birth_place="Hà Nội, Việt Nam",
-#         calendar_type="solar",
-#         user_question=(
-#             "Hãy tập trung vào điểm mạnh và "
-#             "định hướng phát triển bản thân."
-#         ),
-#     )
+if __name__ == "__main__":
+    # Kiểm tra nhanh một tool.
+    result = interpret_tuvi_overview(
+        birth_date="12/08/2003",
+        birth_time="14:30",
+        gender="nữ",
+        birth_place="Hà Nội, Việt Nam",
+        calendar_type="solar",
+        user_question=(
+            "Hãy tập trung vào điểm mạnh và "
+            "định hướng phát triển bản thân."
+        ),
+    )
 
-#     print(result)
+    print(result)
