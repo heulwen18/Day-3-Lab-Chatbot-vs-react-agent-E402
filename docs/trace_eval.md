@@ -17,23 +17,7 @@
 
 ## 🤖 2. MỐC 2 — NHẬT KÝ PHẢN HỒI CHATBOT GỐC (BASELINE)
 
-### 2.1. Cấu hình lần chạy (Run Configuration)
-
-| Hạng mục | Giá trị |
-| :--- | :--- |
-| **Ngày chạy** | 28/07/2026 |
-| **Lệnh chạy** | `LLM_MODEL=gemini-flash-lite-latest python src/app.py --mode baseline` |
-| **Provider** | `GeminiProvider` |
-| **Model thực tế** | `gemini-flash-lite-latest` |
-| **System Prompt** | `CHATBOT_BASELINE_PROMPT` (Role 3, `src/prompts.py`) |
-| **Bộ test** | 5 case trong `config/test_cases.json` (Role 1) |
-| **Protocol** | 1 LLM call / câu hỏi — **tool_calls = 0** (hàm `run_baseline_chatbot()` không truyền tool nào cho model) |
-| **Số lần chạy** | 2 lần độc lập trên cùng bộ câu hỏi (để kiểm tra tính ổn định) |
-
-
----
-
-### 2.2. Bảng phân loại output (Correct / Safe fallback / Hallucinated)
+### Bảng phân loại output (Correct / Safe fallback / Hallucinated)
 
 | Case | Loại câu hỏi | LLM calls | Tool calls | Latency | Phân loại | Chatbot có làm được việc không? |
 | :---: | :--- | :---: | :---: | :---: | :--- | :--- |
