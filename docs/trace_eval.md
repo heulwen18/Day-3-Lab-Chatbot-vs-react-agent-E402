@@ -2,16 +2,17 @@
 *Dành cho Role 5: Observability & Reviewer*
 
 ---
+# Bài toán: Coi tử vi và ghép đôi
 
 ## 🎯 1. BẢNG CHẤM ĐIỂM AGENTIC FIT (SCORING MATRIX)
 
 | Tiêu chí | Điểm (1-5) | Lý do đánh giá |
 | :--- | :---: | :--- |
-| 🧠 **Multi-step Reasoning** | `4/5` | Cần suy luận từ tra cứu thời tiết đến chọn trang phục. |
-| 🛠️ **Tool Interaction** | `5/5` | Cần tra cứu dữ liệu thời gian thực qua API thời tiết/chuyến bay. |
-| 🔀 **Dynamic Decision** | `4/5` | Kết quả bước trước quyết định hành động bước sau. |
-| ⏳ **Long Horizon** | `3/5` | Quy trình gồm 2-3 bước xử lý ngắn. |
-| **TỔNG ĐIỂM FIT** | **16/20** | **KẾT LUẬN: BÀI TOÁN RẤT NÊN DÙNG REACT AGENT!** |
+| 🧠 **Multi-step Reasoning** | `4/5` | Cần suy luận từ ngày/giờ sinh của người dùng để xác định kết quả trả về, rồi tiếp tục suy luận để tìm đối tượng ghép đôi tương hợp. |
+| 🛠️ **Tool Interaction** | `4/5` | Cần gọi API tới ChatGPT như một công cụ (tool) để sinh luận giải tử vi (cung mệnh, ngũ hành, độ tương hợp) trước khi đưa ra kết quả ghép đôi. |
+| 🔀 **Dynamic Decision** | `4/5` | Kết quả xác định mệnh/cung ở bước trước quyết định đối tượng cần tra cứu để ghép đôi ở bước sau. |
+| ⏳ **Long Horizon** | `3/5` | Quy trình gồm 2-3 bước xử lý ngắn (xác định mệnh → tra cứu đối tượng → kết luận ghép đôi). |
+| **TỔNG ĐIỂM FIT** | **15/20** | **KẾT LUẬN: BÀI TOÁN NÊN DÙNG REACT AGENT!** |
 
 ---
 
