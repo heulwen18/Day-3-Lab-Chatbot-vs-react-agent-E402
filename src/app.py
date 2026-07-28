@@ -9,6 +9,8 @@ import json
 import os
 import re
 import sys
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -409,6 +411,13 @@ def _parse_cli_args() -> argparse.Namespace:
         action="store_true",
         help="Nhập thông tin sinh và nhận luận giải tử vi tổng quan",
     )
+    parser.add_argument(
+        "--serve",
+        action="store_true",
+        help="Chạy demo web và API tại http://host:port/",
+    )
+    parser.add_argument("--host", default="127.0.0.1", help="Host để mở demo web")
+    parser.add_argument("--port", type=int, default=8000, help="Port cho demo web")
     return parser.parse_args()
 
 
@@ -507,9 +516,119 @@ def run_interactive(provider) -> AgentResult | None:
     return result
 
 
+def _run_web_demo_server(provider, host: str, port: int) -> None:
+    """Serve the standalone web demo and the model proxy API."""
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    web_path = os.path.join(project_root, "src", "web.html")
+
+    class DemoRequestHandler(BaseHTTPRequestHandler):
+        server_version = "AstroAgentDemo/1.0"
+
+        def _set_common_headers(self, content_type: str = "application/json") -> None:
+            self.send_header("Content-Type", content_type)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+
+        def _send_json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
+            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            self.send_response(status)
+            self._set_common_headers()
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _send_html(self, html: str, status: HTTPStatus = HTTPStatus.OK) -> None:
+            body = html.encode("utf-8")
+            self.send_response(status)
+            self._set_common_headers("text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _read_json_body(self) -> dict[str, Any]:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+            raw_body = self.rfile.read(length) if length > 0 else b"{}"
+            try:
+                payload = json.loads(raw_body.decode("utf-8") or "{}")
+            except json.JSONDecodeError as error:
+                raise ValueError(f"Payload JSON không hợp lệ: {error}") from error
+            if not isinstance(payload, dict):
+                raise ValueError("Payload phải là JSON object.")
+            return payload
+
+        def do_OPTIONS(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+            self.send_response(HTTPStatus.NO_CONTENT)
+            self._set_common_headers()
+            self.end_headers()
+
+        def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+            if self.path in {"/", "/index.html"}:
+                try:
+                    with open(web_path, encoding="utf-8") as file:
+                        self._send_html(file.read())
+                except FileNotFoundError:
+                    self._send_json(HTTPStatus.NOT_FOUND, {"error": f"Không tìm thấy {web_path}"})
+                return
+
+            if self.path == "/api/health":
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "status": "ok",
+                        "provider": provider.__class__.__name__,
+                        "model": getattr(provider, "model_name", "unknown"),
+                    },
+                )
+                return
+
+            self._send_json(HTTPStatus.NOT_FOUND, {"error": f"Không hỗ trợ đường dẫn {self.path}"})
+
+        def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+            if self.path != "/api/generate":
+                self._send_json(HTTPStatus.NOT_FOUND, {"error": f"Không hỗ trợ đường dẫn {self.path}"})
+                return
+
+            try:
+                payload = self._read_json_body()
+                system_prompt = str(payload.get("systemPrompt") or payload.get("system_prompt") or "")
+                user_content = str(payload.get("userContent") or payload.get("prompt") or payload.get("user_content") or "")
+                text = provider.generate(user_content, system_prompt=system_prompt)
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "text": str(text or ""),
+                        "provider": provider.__class__.__name__,
+                        "model": getattr(provider, "model_name", "unknown"),
+                    },
+                )
+            except ValueError as error:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(error)})
+            except Exception as error:  # pragma: no cover - defensive server boundary
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"Lỗi server: {error}"})
+
+        def log_message(self, format: str, *args: Any) -> None:
+            return
+
+    server = ThreadingHTTPServer((host, port), DemoRequestHandler)
+    print("=" * 58)
+    print("BÀI LAB 3: CHATBOT VS REACT AGENT")
+    print("=" * 58)
+    print(f"Provider: {provider.__class__.__name__} (Model: {getattr(provider, 'model_name', 'unknown')})")
+    print(f"Demo web: http://{host}:{port}/")
+    print(f"API: http://{host}:{port}/api/generate")
+    print("Nhấn Ctrl+C để dừng server.")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nĐã dừng demo web.")
+    finally:
+        server.server_close()
+
+
 def main() -> int:
     args = _parse_cli_args()
-    provider_name = os.getenv("LLM_PROVIDER", "mock").strip().lower()
+    provider_name = os.getenv("LLM_PROVIDER", "gemini").strip().lower()
     provider = (
         OfflineAstrologyProvider()
         if provider_name == "mock"
@@ -521,6 +640,10 @@ def main() -> int:
         if not tests:
             print(f"Không tìm thấy test case có id={args.case}.", file=sys.stderr)
             return 2
+
+    if args.serve:
+        _run_web_demo_server(provider, args.host, args.port)
+        return 0
 
     model_name = getattr(provider, "model_name", "Offline Mock Mode")
     print("=" * 58)
