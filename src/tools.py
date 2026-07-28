@@ -53,14 +53,19 @@ Trả lời bằng tiếng Việt, rõ ràng, dễ hiểu và có cấu trúc.
 # ============================================================
 
 def _get_client() -> genai.Client:
-    """
-    Khởi tạo Gemini client khi tool được gọi.
+    """Khởi tạo (hoặc tái sử dụng) Gemini client dùng chung cho module.
+
+    Client được tạo lười (lazy init) ở lần gọi đầu tiên và lưu vào
+    biến toàn cục ``_CLIENT`` để tái sử dụng cho các lần gọi sau,
+    tránh phải khởi tạo lại mỗi khi một tool được gọi.
 
     Returns:
-        genai.Client: Gemini API client.
+        genai.Client: Instance Gemini API client đã sẵn sàng sử dụng.
 
     Raises:
-        ValueError: Nếu chưa thiết lập API key.
+        ValueError: Nếu không tìm thấy biến môi trường
+            ``GEMINI_API_KEY`` hoặc ``GOOGLE_API_KEY`` trong file
+            ``.env`` hoặc môi trường hệ thống.
     """
     global _CLIENT
 
@@ -79,7 +84,20 @@ def _get_client() -> genai.Client:
 
 
 def _normalize_gender(gender: str) -> str | None:
-    """Chuẩn hóa giới tính về 'nam' hoặc 'nữ'."""
+    """Chuẩn hóa chuỗi giới tính người dùng nhập về dạng thống nhất.
+
+    Chấp nhận nhiều biến thể viết hoa/thường, có dấu/không dấu hoặc
+    viết tắt tiếng Anh, ví dụ: "Nam", "male", "M", "nữ", "nu", "F".
+
+    Args:
+        gender: Chuỗi giới tính do người dùng cung cấp, ở dạng thô
+            (chưa chuẩn hóa).
+
+    Returns:
+        str | None: ``"nam"`` hoặc ``"nữ"`` nếu nhận diện được giá
+        trị hợp lệ; ``None`` nếu chuỗi đầu vào không khớp với bất kỳ
+        biến thể nào đã biết.
+    """
     value = gender.strip().lower()
 
     if value in {"nam", "male", "m"}:
@@ -92,7 +110,20 @@ def _normalize_gender(gender: str) -> str | None:
 
 
 def _normalize_calendar_type(calendar_type: str) -> str | None:
-    """Chuẩn hóa loại lịch về 'solar' hoặc 'lunar'."""
+    """Chuẩn hóa chuỗi loại lịch về ``"solar"`` hoặc ``"lunar"``.
+
+    Chấp nhận cả tiếng Anh và tiếng Việt (có dấu/không dấu), ví dụ:
+    "solar", "dương lịch", "duong lich", "lunar", "âm lịch", "am".
+
+    Args:
+        calendar_type: Chuỗi loại lịch do người dùng cung cấp, ở
+            dạng thô (chưa chuẩn hóa).
+
+    Returns:
+        str | None: ``"solar"`` hoặc ``"lunar"`` nếu nhận diện được
+        giá trị hợp lệ; ``None`` nếu không khớp với biến thể nào
+        đã biết.
+    """
     value = calendar_type.strip().lower()
 
     solar_values = {
@@ -127,11 +158,33 @@ def _validate_birth_info(
     birth_place: str,
     calendar_type: str,
 ) -> dict[str, str | int]:
-    """
-    Kiểm tra và chuẩn hóa dữ liệu sinh.
+    """Kiểm tra tính hợp lệ và chuẩn hóa toàn bộ dữ liệu sinh.
+
+    Thực hiện tuần tự các bước kiểm tra: định dạng ngày sinh
+    (DD/MM/YYYY), định dạng giờ sinh (HH:MM), ngày sinh không được
+    ở tương lai, giới tính hợp lệ, loại lịch hợp lệ và nơi sinh
+    không được để trống.
+
+    Args:
+        birth_date: Ngày sinh dạng chuỗi, định dạng ``DD/MM/YYYY``.
+        birth_time: Giờ sinh dạng chuỗi, định dạng ``HH:MM``.
+        gender: Giới tính, chấp nhận nhiều biến thể (xem
+            :func:`_normalize_gender`).
+        birth_place: Nơi sinh, ví dụ ``"Hà Nội, Việt Nam"``.
+        calendar_type: Loại lịch, ``"solar"`` (dương lịch) hoặc
+            ``"lunar"`` (âm lịch); chấp nhận nhiều biến thể (xem
+            :func:`_normalize_calendar_type`).
+
+    Returns:
+        dict[str, str | int]: Dữ liệu sinh đã được chuẩn hóa, gồm
+        các khóa: ``birth_date``, ``birth_time``, ``birth_day``,
+        ``birth_month``, ``birth_year``, ``gender``, ``birth_place``,
+        ``calendar_type``.
 
     Raises:
-        ValueError: Nếu dữ liệu không hợp lệ.
+        ValueError: Nếu ngày sinh hoặc giờ sinh sai định dạng, ngày
+            sinh nằm trong tương lai, giới tính không hợp lệ, loại
+            lịch không hợp lệ, hoặc nơi sinh bị bỏ trống.
     """
     try:
         parsed_date = datetime.strptime(
@@ -200,7 +253,17 @@ def _validate_birth_info(
 def _format_birth_info(
     birth_info: dict[str, str | int],
 ) -> str:
-    """Chuyển dữ liệu sinh thành chuỗi đưa vào prompt."""
+    """Định dạng dữ liệu sinh đã chuẩn hóa thành khối văn bản cho prompt.
+
+    Args:
+        birth_info: Dữ liệu sinh đã chuẩn hóa, thường là kết quả trả
+            về từ :func:`_validate_birth_info`.
+
+    Returns:
+        str: Chuỗi nhiều dòng (mỗi dòng bắt đầu bằng ``"- "``) tóm
+        tắt ngày sinh, giờ sinh, giới tính, nơi sinh và loại lịch,
+        sẵn sàng để chèn vào prompt gửi cho Gemini.
+    """
     calendar_label = (
         "dương lịch"
         if birth_info["calendar_type"] == "solar"
@@ -221,21 +284,30 @@ def _call_gemini(
     birth_info_text: str,
     additional_instruction: str = "",
 ) -> str:
-    """
-    Gọi Gemini API để thực hiện một nhiệm vụ luận giải.
+    """Gọi Gemini API để thực hiện một nhiệm vụ luận giải cụ thể.
+
+    Hàm dựng prompt gồm ba phần (nhiệm vụ, thông tin sinh, yêu cầu
+    bổ sung của người dùng), gửi kèm ``SYSTEM_INSTRUCTION`` làm system
+    instruction, rồi gọi ``client.models.generate_content``. Yêu cầu
+    bổ sung của người dùng được bọc trong thẻ ``<user_request>`` và
+    được nhắc rõ là không có quyền ghi đè các quy tắc hệ thống, nhằm
+    giảm rủi ro prompt injection.
 
     Args:
-        task:
-            Nội dung yêu cầu Gemini thực hiện.
-
-        birth_info_text:
-            Thông tin sinh đã được chuẩn hóa.
-
-        additional_instruction:
-            Câu hỏi hoặc yêu cầu bổ sung.
+        task: Mô tả nhiệm vụ luận giải mà Gemini cần thực hiện (ví
+            dụ: luận giải tổng quan, luận giải sự nghiệp...).
+        birth_info_text: Thông tin sinh đã được chuẩn hóa và định
+            dạng sẵn (thường là kết quả từ :func:`_format_birth_info`).
+        additional_instruction: Câu hỏi hoặc yêu cầu bổ sung của
+            người dùng. Mặc định rỗng, khi đó prompt sẽ ghi rõ
+            "Không có yêu cầu bổ sung."
 
     Returns:
-        str: Kết quả luận giải từ Gemini.
+        str: Nội dung luận giải do Gemini trả về (đã ``strip()``).
+        Nếu Gemini không trả về nội dung hoặc có lỗi xảy ra trong
+        quá trình gọi API, trả về chuỗi bắt đầu bằng tiền tố
+        ``"TOOL_ERROR:"`` kèm thông tin lỗi; hàm này không raise
+        exception ra ngoài.
     """
     try:
         client = _get_client()
@@ -292,31 +364,26 @@ def validate_birth_info(
     birth_place: str,
     calendar_type: str = "solar",
 ) -> str:
-    """
-    Kiểm tra thông tin ngày, giờ, giới tính và nơi sinh.
+    """Kiểm tra thông tin ngày, giờ, giới tính và nơi sinh.
 
-    Tool này không gọi Gemini vì chỉ thực hiện kiểm tra dữ liệu.
+    Đây là tool duy nhất trong module không gọi Gemini, vì chỉ thực
+    hiện việc kiểm tra và chuẩn hóa dữ liệu đầu vào (dùng
+    :func:`_validate_birth_info` bên trong). Phù hợp để agent gọi
+    trước khi thực hiện các tool luận giải khác, nhằm xác nhận dữ
+    liệu người dùng cung cấp là hợp lệ.
 
     Args:
-        birth_date:
-            Ngày sinh dạng DD/MM/YYYY.
-
-        birth_time:
-            Giờ sinh dạng HH:MM.
-
-        gender:
-            Giới tính nam hoặc nữ.
-
-        birth_place:
-            Nơi sinh, ví dụ 'Hà Nội, Việt Nam'.
-
-        calendar_type:
-            'solar' đối với dương lịch hoặc
-            'lunar' đối với âm lịch.
+        birth_date: Ngày sinh dạng ``DD/MM/YYYY``.
+        birth_time: Giờ sinh dạng ``HH:MM``.
+        gender: Giới tính nam hoặc nữ (chấp nhận nhiều biến thể).
+        birth_place: Nơi sinh, ví dụ ``'Hà Nội, Việt Nam'``.
+        calendar_type: ``'solar'`` đối với dương lịch hoặc
+            ``'lunar'`` đối với âm lịch. Mặc định ``"solar"``.
 
     Returns:
-        str:
-            Thông tin đã chuẩn hóa hoặc TOOL_ERROR.
+        str: Chuỗi bắt đầu bằng ``"VALID_BIRTH_INFO:"`` kèm thông
+        tin sinh đã chuẩn hóa nếu dữ liệu hợp lệ; hoặc chuỗi bắt đầu
+        bằng ``"TOOL_ERROR:"`` kèm lý do nếu dữ liệu không hợp lệ.
     """
     try:
         birth_info = _validate_birth_info(
@@ -348,10 +415,9 @@ def interpret_tuvi_overview(
     calendar_type: str = "solar",
     user_question: str = "",
 ) -> str:
-    """
-    Gọi Gemini để luận giải tổng quan lá số.
+    """Gọi Gemini để luận giải tổng quan lá số.
 
-    Nội dung gồm:
+    Nội dung trả về gồm:
         - Tổng quan tính cách
         - Điểm mạnh
         - Điểm cần chú ý
@@ -359,26 +425,19 @@ def interpret_tuvi_overview(
         - Gợi ý cải thiện bản thân
 
     Args:
-        birth_date:
-            Ngày sinh dạng DD/MM/YYYY.
-
-        birth_time:
-            Giờ sinh dạng HH:MM.
-
-        gender:
-            Giới tính nam hoặc nữ.
-
-        birth_place:
-            Nơi sinh của người dùng.
-
-        calendar_type:
-            Loại lịch solar hoặc lunar.
-
-        user_question:
-            Câu hỏi bổ sung của người dùng.
+        birth_date: Ngày sinh dạng ``DD/MM/YYYY``.
+        birth_time: Giờ sinh dạng ``HH:MM``.
+        gender: Giới tính nam hoặc nữ.
+        birth_place: Nơi sinh của người dùng.
+        calendar_type: Loại lịch ``"solar"`` hoặc ``"lunar"``. Mặc
+            định ``"solar"``.
+        user_question: Câu hỏi hoặc yêu cầu bổ sung của người dùng.
+            Mặc định rỗng.
 
     Returns:
-        str: Phần luận giải từ Gemini hoặc TOOL_ERROR.
+        str: Nội dung luận giải tổng quan từ Gemini, hoặc chuỗi bắt
+        đầu bằng ``"TOOL_ERROR:"`` nếu dữ liệu sinh không hợp lệ
+        hoặc việc gọi Gemini thất bại.
     """
     try:
         birth_info = _validate_birth_info(
@@ -426,30 +485,26 @@ def interpret_study_and_career(
     calendar_type: str = "solar",
     current_field: str = "",
 ) -> str:
-    """
-    Gọi Gemini để luận giải học tập và sự nghiệp.
+    """Gọi Gemini để luận giải học tập và sự nghiệp.
+
+    Nội dung trả về gồm phong cách học tập, thế mạnh trong công
+    việc, khó khăn dễ gặp, nhóm môi trường phù hợp, kỹ năng nên phát
+    triển và lời khuyên thực tế.
 
     Args:
-        birth_date:
-            Ngày sinh dạng DD/MM/YYYY.
-
-        birth_time:
-            Giờ sinh dạng HH:MM.
-
-        gender:
-            Giới tính nam hoặc nữ.
-
-        birth_place:
-            Nơi sinh của người dùng.
-
-        calendar_type:
-            Loại lịch solar hoặc lunar.
-
-        current_field:
-            Ngành học hoặc công việc hiện tại.
+        birth_date: Ngày sinh dạng ``DD/MM/YYYY``.
+        birth_time: Giờ sinh dạng ``HH:MM``.
+        gender: Giới tính nam hoặc nữ.
+        birth_place: Nơi sinh của người dùng.
+        calendar_type: Loại lịch ``"solar"`` hoặc ``"lunar"``. Mặc
+            định ``"solar"``.
+        current_field: Ngành học hoặc công việc hiện tại của người
+            dùng. Nếu để trống, prompt sẽ ghi rõ là chưa cung cấp.
 
     Returns:
-        str: Phần luận giải từ Gemini hoặc TOOL_ERROR.
+        str: Nội dung luận giải học tập/sự nghiệp từ Gemini, hoặc
+        chuỗi bắt đầu bằng ``"TOOL_ERROR:"`` nếu dữ liệu sinh không
+        hợp lệ hoặc việc gọi Gemini thất bại.
     """
     try:
         birth_info = _validate_birth_info(
@@ -504,30 +559,26 @@ def interpret_relationships(
     calendar_type: str = "solar",
     relationship_question: str = "",
 ) -> str:
-    """
-    Gọi Gemini để luận giải tình cảm và giao tiếp.
+    """Gọi Gemini để luận giải tình cảm và giao tiếp.
+
+    Nội dung trả về gồm phong cách thể hiện tình cảm, nhu cầu trong
+    mối quan hệ, điểm mạnh khi giao tiếp, điểm dễ gây hiểu lầm và
+    gợi ý xây dựng mối quan hệ lành mạnh.
 
     Args:
-        birth_date:
-            Ngày sinh dạng DD/MM/YYYY.
-
-        birth_time:
-            Giờ sinh dạng HH:MM.
-
-        gender:
-            Giới tính nam hoặc nữ.
-
-        birth_place:
-            Nơi sinh của người dùng.
-
-        calendar_type:
-            Loại lịch solar hoặc lunar.
-
-        relationship_question:
-            Vấn đề tình cảm người dùng muốn hỏi.
+        birth_date: Ngày sinh dạng ``DD/MM/YYYY``.
+        birth_time: Giờ sinh dạng ``HH:MM``.
+        gender: Giới tính nam hoặc nữ.
+        birth_place: Nơi sinh của người dùng.
+        calendar_type: Loại lịch ``"solar"`` hoặc ``"lunar"``. Mặc
+            định ``"solar"``.
+        relationship_question: Vấn đề tình cảm cụ thể mà người dùng
+            muốn hỏi. Mặc định rỗng.
 
     Returns:
-        str: Phần luận giải từ Gemini hoặc TOOL_ERROR.
+        str: Nội dung luận giải tình cảm từ Gemini, hoặc chuỗi bắt
+        đầu bằng ``"TOOL_ERROR:"`` nếu dữ liệu sinh không hợp lệ
+        hoặc việc gọi Gemini thất bại.
     """
     try:
         birth_info = _validate_birth_info(
@@ -576,33 +627,30 @@ def interpret_yearly_fortune(
     calendar_type: str = "solar",
     user_question: str = "",
 ) -> str:
-    """
-    Gọi Gemini để luận giải xu hướng trong một năm cụ thể.
+    """Gọi Gemini để luận giải xu hướng trong một năm cụ thể.
+
+    Nội dung trả về gồm chủ đề tổng quan của năm, học tập/công
+    việc, tài chính ở mức định hướng chung, tình cảm, sức khỏe ở
+    mức chăm sóc bản thân chung, điều nên ưu tiên và điều nên
+    thận trọng.
 
     Args:
-        birth_date:
-            Ngày sinh dạng DD/MM/YYYY.
-
-        birth_time:
-            Giờ sinh dạng HH:MM.
-
-        gender:
-            Giới tính nam hoặc nữ.
-
-        birth_place:
-            Nơi sinh của người dùng.
-
-        target_year:
-            Năm cần luận giải, ví dụ 2026.
-
-        calendar_type:
-            Loại lịch solar hoặc lunar.
-
-        user_question:
-            Câu hỏi bổ sung của người dùng.
+        birth_date: Ngày sinh dạng ``DD/MM/YYYY``.
+        birth_time: Giờ sinh dạng ``HH:MM``.
+        gender: Giới tính nam hoặc nữ.
+        birth_place: Nơi sinh của người dùng.
+        target_year: Năm cần luận giải, ví dụ ``2026``. Phải nằm
+            trong khoảng từ 1900 đến 2200.
+        calendar_type: Loại lịch ``"solar"`` hoặc ``"lunar"``. Mặc
+            định ``"solar"``.
+        user_question: Câu hỏi hoặc yêu cầu bổ sung của người dùng.
+            Mặc định rỗng.
 
     Returns:
-        str: Phần luận giải từ Gemini hoặc TOOL_ERROR.
+        str: Nội dung luận giải theo năm từ Gemini, hoặc chuỗi bắt
+        đầu bằng ``"TOOL_ERROR:"`` nếu dữ liệu sinh không hợp lệ,
+        ``target_year`` nằm ngoài khoảng cho phép, hoặc việc gọi
+        Gemini thất bại.
     """
     try:
         birth_info = _validate_birth_info(
@@ -664,13 +712,34 @@ def interpret_compatibility(
     calendar_type: str = "solar",
     user_question: str = "",
 ) -> str:
-    """
-    Gọi Gemini để luận giải độ tương hợp giữa hai người.
+    """Gọi Gemini để luận giải độ tương hợp giữa hai người.
 
-    Đây là tính năng tùy chọn.
+    Đây là tính năng tùy chọn (optional), dùng khi người dùng muốn
+    so sánh hai lá số. Cả hai người được giả định dùng chung một
+    loại lịch (``calendar_type``).
+
+    Nội dung trả về gồm đặc điểm nổi bật của từng người, điểm tương
+    đồng, điểm bổ trợ, điểm dễ xung đột, gợi ý giao tiếp và mức độ
+    tương hợp tham khảo.
+
+    Args:
+        person_1_birth_date: Ngày sinh người thứ nhất, ``DD/MM/YYYY``.
+        person_1_birth_time: Giờ sinh người thứ nhất, ``HH:MM``.
+        person_1_gender: Giới tính người thứ nhất.
+        person_1_birth_place: Nơi sinh người thứ nhất.
+        person_2_birth_date: Ngày sinh người thứ hai, ``DD/MM/YYYY``.
+        person_2_birth_time: Giờ sinh người thứ hai, ``HH:MM``.
+        person_2_gender: Giới tính người thứ hai.
+        person_2_birth_place: Nơi sinh người thứ hai.
+        calendar_type: Loại lịch dùng chung cho cả hai người,
+            ``"solar"`` hoặc ``"lunar"``. Mặc định ``"solar"``.
+        user_question: Câu hỏi hoặc yêu cầu bổ sung của người dùng.
+            Mặc định rỗng.
 
     Returns:
-        str: Phần luận giải từ Gemini hoặc TOOL_ERROR.
+        str: Nội dung luận giải độ tương hợp từ Gemini, hoặc chuỗi
+        bắt đầu bằng ``"TOOL_ERROR:"`` nếu dữ liệu sinh của một
+        trong hai người không hợp lệ, hoặc việc gọi Gemini thất bại.
     """
     try:
         person_1 = _validate_birth_info(
@@ -766,18 +835,17 @@ TOOL_DESCRIPTIONS = {
 }
 
 
-if __name__ == "__main__":
-    # Kiểm tra nhanh một tool.
-    result = interpret_tuvi_overview(
-        birth_date="12/08/2003",
-        birth_time="14:30",
-        gender="nữ",
-        birth_place="Hà Nội, Việt Nam",
-        calendar_type="solar",
-        user_question=(
-            "Hãy tập trung vào điểm mạnh và "
-            "định hướng phát triển bản thân."
-        ),
-    )
+# if __name__ == "__main__":
+#     result = interpret_tuvi_overview(
+#         birth_date="12/08/2003",
+#         birth_time="14:30",
+#         gender="nữ",
+#         birth_place="Hà Nội, Việt Nam",
+#         calendar_type="solar",
+#         user_question=(
+#             "Hãy tập trung vào điểm mạnh và "
+#             "định hướng phát triển bản thân."
+#         ),
+#     )
 
-    print(result)
+#     print(result)
