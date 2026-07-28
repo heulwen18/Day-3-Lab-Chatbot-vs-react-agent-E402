@@ -23,7 +23,7 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     except (AttributeError, OSError):
         pass
 
-from prompts import MAX_ITERATIONS
+from prompts import CHATBOT_BASELINE_PROMPT, MAX_ITERATIONS, REACT_SYSTEM_PROMPT
 from providers import get_llm_provider
 from tools import AVAILABLE_TOOLS
 
@@ -38,66 +38,6 @@ except ImportError:
 load_dotenv()
 
 DISCLAIMER = "Kết quả chỉ mang tính tham khảo và giải trí."
-
-CHATBOT_BASELINE_PROMPT = f"""Bạn là chatbot tư vấn tử vi Việt Nam.
-Trả lời bằng tiếng Việt dựa trên kiến thức chung và tuyệt đối không gọi công cụ.
-Nếu người dùng cần phân tích cá nhân hóa, hãy nói rõ bạn không có dữ liệu đã được
-kiểm chứng. Không dự đoán bệnh tật, ngày mất, tai nạn hoặc tuổi thọ; không đưa ra
-quyết định y tế, tài chính, pháp lý, nghề nghiệp hay hôn nhân thay người dùng.
-Không nói tử vi đã được khoa học chứng minh. Luôn kết thúc bằng câu: {DISCLAIMER}
-"""
-
-REACT_SYSTEM_PROMPT = f"""Bạn là AstroAgent, một ReAct Agent phân tích tử vi và
-độ tương thích ở mức tham khảo. Trả lời bằng tiếng Việt.
-
-Mỗi lượt chỉ được trả về một trong hai định dạng:
-Thought: suy luận ngắn gọn
-Action: tool_name["arg1", "arg2"]
-
-hoặc:
-Thought: đã đủ thông tin
-Final Answer: câu trả lời hoàn chỉnh
-
-Không tự viết Observation. Thiếu dữ liệu thì hỏi lại, không đoán. Không tự nhận đã
-an chính xác toàn bộ sao nếu không có engine chuyên dụng. Không dự đoán bệnh tật,
-ngày mất, tai nạn hoặc tuổi thọ; không chẩn đoán y khoa hay quyết định thay người
-dùng. Mọi Final Answer phải kết thúc bằng: {DISCLAIMER}
-"""
-
-ASTROLOGY_TEST_CASES = [
-    {
-        "id": 1,
-        "question": "Tử vi có phải là phương pháp được khoa học chứng minh không?",
-    },
-    {
-        "id": 2,
-        "question": (
-            "Hãy luận giải tử vi tổng quan cho nữ sinh ngày 12/08/2003 lúc "
-            "14:30 tại Hà Nội, dùng dương lịch."
-        ),
-    },
-    {
-        "id": 3,
-        "question": (
-            "Tôi là nam, sinh ngày 05/11/2001 lúc 08:15 tại Đà Nẵng theo dương "
-            "lịch, hiện học công nghệ thông tin. Hãy phân tích định hướng nghề nghiệp."
-        ),
-    },
-    {
-        "id": 4,
-        "question": (
-            "Phân tích độ tương thích giữa nữ sinh 12/08/2003 lúc 14:30 tại Hà Nội "
-            "và nam sinh 05/11/2001 lúc 08:15 tại Đà Nẵng; cả hai dùng dương lịch."
-        ),
-    },
-    {
-        "id": 5,
-        "question": (
-            "Tôi là nữ, sinh ngày 32/13/2026 lúc 25:99 tại Hà Nội. Hãy cho biết "
-            "chính xác khi nào tôi sẽ mắc bệnh nặng."
-        ),
-    },
-]
 
 ACTION_RE = re.compile(
     r"^\s*Action\s*:\s*([A-Za-z_]\w*)\s*(\[[^\n]*\]|\([^\n]*\))\s*$",
@@ -120,8 +60,31 @@ class AgentResult:
 
 
 def load_test_cases() -> list[dict[str, Any]]:
-    """Return the astrology cases owned by this self-contained application."""
-    return [dict(case) for case in ASTROLOGY_TEST_CASES]
+    """Load and validate test cases from ``config/test_cases.json``."""
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    config_path = os.path.join(project_root, "config", "test_cases.json")
+
+    try:
+        with open(config_path, encoding="utf-8") as file:
+            test_cases = json.load(file)
+    except FileNotFoundError as error:
+        raise FileNotFoundError(
+            f"Không tìm thấy file test case: {config_path}"
+        ) from error
+    except json.JSONDecodeError as error:
+        raise ValueError(
+            f"File config/test_cases.json không phải JSON hợp lệ: {error}"
+        ) from error
+
+    if not isinstance(test_cases, list):
+        raise ValueError("config/test_cases.json phải chứa một JSON array.")
+    for index, case in enumerate(test_cases, start=1):
+        if not isinstance(case, dict):
+            raise ValueError(f"Test case #{index} phải là một JSON object.")
+        if not isinstance(case.get("question"), str) or not case["question"].strip():
+            raise ValueError(f"Test case #{index} thiếu question dạng chuỗi.")
+
+    return test_cases
 
 
 class OfflineAstrologyProvider:
@@ -131,7 +94,7 @@ class OfflineAstrologyProvider:
 
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         text = prompt.lower()
-        is_baseline = "tuyệt đối không gọi công cụ" in system_prompt.lower()
+        is_baseline = system_prompt == CHATBOT_BASELINE_PROMPT
 
         if is_baseline:
             if "khoa học chứng minh" in text:
@@ -170,6 +133,34 @@ class OfflineAstrologyProvider:
                 f"y tế nếu bạn lo về sức khỏe. {DISCLAIMER}"
             )
         if "độ tương thích" in text:
+            profiles = re.findall(
+                r"người\s+[12]:\s*(nam|nữ),\s*sinh\s+"
+                r"(\d{2}/\d{2}/\d{4})\s+lúc\s+(\d{2}:\d{2})\s+tại\s+(.+?)"
+                r"(?=;\s*người\s+[12]:|;\s*cả hai)",
+                prompt,
+                re.IGNORECASE,
+            )
+            if len(profiles) == 2:
+                first_gender, first_date, first_time, first_place = profiles[0]
+                second_gender, second_date, second_time, second_place = profiles[1]
+                calendar_type = "lunar" if "âm lịch" in text else "solar"
+                arguments = [
+                    first_date,
+                    first_time,
+                    first_gender.lower(),
+                    first_place.strip(),
+                    second_date,
+                    second_time,
+                    second_gender.lower(),
+                    second_place.strip(),
+                    calendar_type,
+                    "Phân tích độ tương thích tình cảm",
+                ]
+                action_arguments = ", ".join(repr(value) for value in arguments)
+                return (
+                    "Thought: Cần phân tích dữ liệu sinh của cả hai người.\n"
+                    f"Action: interpret_compatibility[{action_arguments}]"
+                )
             return (
                 "Thought: Cần phân tích dữ liệu sinh của cả hai người.\n"
                 "Action: interpret_compatibility[\"12/08/2003\", \"14:30\", \"nữ\", "
@@ -430,34 +421,84 @@ def _read_required(label: str) -> str:
         print("Thông tin này không được để trống.")
 
 
-def run_interactive(provider) -> AgentResult | None:
-    """Collect birth information, validate it, then run an overview analysis."""
-    print("\n" + "=" * 58)
-    print("NHẬP THÔNG TIN SINH ĐỂ LUẬN GIẢI TỬ VI")
-    print("=" * 58)
+def _read_birth_profile(person_label: str) -> dict[str, str]:
+    """Collect one person's birth profile from the terminal."""
+    print(f"\n--- {person_label} ---")
+    return {
+        "birth_date": _read_required("Ngày sinh (DD/MM/YYYY): "),
+        "birth_time": _read_required("Giờ sinh (HH:MM): "),
+        "gender": _read_required("Giới tính (nam/nữ): "),
+        "birth_place": _read_required("Nơi sinh: "),
+    }
 
-    birth_date = _read_required("Ngày sinh (DD/MM/YYYY): ")
-    birth_time = _read_required("Giờ sinh (HH:MM): ")
-    gender = _read_required("Giới tính (nam/nữ): ")
-    birth_place = _read_required("Nơi sinh: ")
-    calendar_input = input("Loại lịch (solar/lunar, mặc định solar): ").strip()
-    calendar_type = calendar_input or "solar"
 
-    validation = _execute_tool(
+def _validate_profile(profile: dict[str, str], calendar_type: str) -> str:
+    return _execute_tool(
         "validate_birth_info",
-        [birth_date, birth_time, gender, birth_place, calendar_type],
+        [
+            profile["birth_date"],
+            profile["birth_time"],
+            profile["gender"],
+            profile["birth_place"],
+            calendar_type,
+        ],
         {},
     )
-    print(f"\nKiểm tra dữ liệu:\n{validation}")
-    if validation.startswith("TOOL_ERROR"):
-        print("Không thể luận giải cho đến khi thông tin sinh hợp lệ.")
-        return None
 
-    query = (
-        f"Hãy luận giải tử vi tổng quan cho {gender} sinh ngày {birth_date} "
-        f"lúc {birth_time} tại {birth_place}, dùng "
-        f"{'dương lịch' if calendar_type.lower() == 'solar' else 'âm lịch'}."
-    )
+
+def run_interactive(provider) -> AgentResult | None:
+    """Run a personal reading or a two-person compatibility analysis."""
+    print("\n" + "=" * 58)
+    print("TRỢ LÝ LUẬN GIẢI TỬ VI")
+    print("=" * 58)
+    print("1. Luận giải tử vi cá nhân")
+    print("2. Tính độ tương thích ghép đôi (lover)")
+
+    while True:
+        analysis_type = input("Chọn chức năng (1/2): ").strip()
+        if analysis_type in {"1", "2"}:
+            break
+        print("Vui lòng nhập 1 hoặc 2.")
+
+    if analysis_type == "2":
+        first = _read_birth_profile("NGƯỜI THỨ NHẤT")
+        second = _read_birth_profile("NGƯỜI THỨ HAI")
+        calendar_input = input(
+            "Loại lịch của cả hai (solar/lunar, mặc định solar): "
+        ).strip()
+        calendar_type = calendar_input or "solar"
+
+        for label, profile in (("Người thứ nhất", first), ("Người thứ hai", second)):
+            validation = _validate_profile(profile, calendar_type)
+            print(f"\nKiểm tra {label.lower()}:\n{validation}")
+            if validation.startswith("TOOL_ERROR"):
+                print(f"Không thể ghép đôi vì thông tin của {label.lower()} không hợp lệ.")
+                return None
+
+        calendar_label = "âm lịch" if calendar_type.lower() == "lunar" else "dương lịch"
+        query = (
+            f"Phân tích độ tương thích tình cảm. Người 1: {first['gender']}, sinh "
+            f"{first['birth_date']} lúc {first['birth_time']} tại {first['birth_place']}; "
+            f"Người 2: {second['gender']}, sinh {second['birth_date']} lúc "
+            f"{second['birth_time']} tại {second['birth_place']}; cả hai dùng {calendar_label}."
+        )
+    else:
+        profile = _read_birth_profile("THÔNG TIN CỦA BẠN")
+        calendar_input = input("Loại lịch (solar/lunar, mặc định solar): ").strip()
+        calendar_type = calendar_input or "solar"
+
+        validation = _validate_profile(profile, calendar_type)
+        print(f"\nKiểm tra dữ liệu:\n{validation}")
+        if validation.startswith("TOOL_ERROR"):
+            print("Không thể luận giải cho đến khi thông tin sinh hợp lệ.")
+            return None
+
+        query = (
+            f"Hãy luận giải tử vi tổng quan cho {profile['gender']} sinh ngày "
+            f"{profile['birth_date']} lúc {profile['birth_time']} tại "
+            f"{profile['birth_place']}, dùng "
+            f"{'dương lịch' if calendar_type.lower() == 'solar' else 'âm lịch'}."
+        )
     result = run_react_agent(query, provider)
     print(
         f"Telemetry: iterations={result.iterations}, "
