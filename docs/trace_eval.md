@@ -30,7 +30,6 @@
 | **Protocol** | 1 LLM call / câu hỏi — **tool_calls = 0** (hàm `run_baseline_chatbot()` không truyền tool nào cho model) |
 | **Số lần chạy** | 2 lần độc lập trên cùng bộ câu hỏi (để kiểm tra tính ổn định) |
 
-> ⚠️ **Ghi chú kỹ thuật (minh bạch số liệu)**: Model mặc định trong `.env` là `gemini-flash-latest` nhưng **đã cạn quota free-tier** (`429 RESOURCE_EXHAUSTED`, giới hạn 20 request/ngày/model) tại thời điểm chạy, nên toàn bộ 5 case đầu tiên đều trả về lỗi quota chứ không có nội dung. Vì vậy log dưới đây được chạy lại bằng `gemini-flash-lite-latest` (cùng nhà cung cấp, còn quota). Đây cũng chính là **Failure Mode FM08** mà Role 3 đã dự báo trong `src/prompts.py`.
 
 ---
 
