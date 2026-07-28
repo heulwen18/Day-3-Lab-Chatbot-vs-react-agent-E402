@@ -1,17 +1,3 @@
-"""
-🛠️ TOOL REGISTRY & SCHEMAS
-Dành cho Role 2: Tool & Spec Engineer
-
-Đề tài:
-    AstroAgent — Trợ lý luận giải tử vi bằng Gemini API.
-
-Nguyên tắc:
-    - Không cần file JSON dữ liệu.
-    - Dữ liệu được truyền trực tiếp từ người dùng vào tham số tool.
-    - Các tool gọi Gemini API và trả về chuỗi Observation.
-    - Ghép đôi là tính năng tùy chọn.
-"""
-
 from __future__ import annotations
 
 import os
