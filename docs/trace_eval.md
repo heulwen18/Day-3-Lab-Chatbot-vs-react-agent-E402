@@ -312,15 +312,13 @@ Trình bày dạng **bảng bước** thay vì log thô, để thấy ngay mạc
 
 *"Tôi sinh ngày 05/11/2001 lúc 08:15, nam, tại Đà Nẵng, theo dương lịch. Trước tiên hãy kiểm tra thông tin sinh, sau đó phân tích việc học và sự nghiệp; hiện tôi đang học Công nghệ thông tin."*
 
-| Bước | Thought | Action | Observation |
-| :---: | :--- | :--- | :--- | :---: |
-| 1 | Người dùng yêu cầu kiểm tra dữ liệu trước → gọi validate | `validate_birth_info["05/11/2001", "08:15", "nam", "Đà Nẵng", "solar"]` | `VALID_BIRTH_INFO:` + ngày 05/11/2001, giờ 08:15, giới tính nam, nơi sinh Đà Nẵng, loại lịch **dương lịch** |
-| 2 | Dữ liệu hợp lệ → phân tích học tập/sự nghiệp ngành CNTT | `interpret_study_and_career["05/11/2001", "08:15", "nam", "Đà Nẵng", "solar", "Công nghệ thông tin"]` |
-| 3 | Đã đủ bằng chứng cả 2 bước → kết luận | *(Final Answer tổng hợp 2 Observation)* | 
+| Bước | Thought | Action | Observation | 
+| :---: | :--- | :--- | :---: | 
+| 1 | Người dùng yêu cầu kiểm tra dữ liệu trước → gọi validate | `validate_birth_info["05/11/2001", "08:15", "nam", "Đà Nẵng", "solar"]` | `VALID_BIRTH_INFO:` + ngày 05/11/2001, giờ 08:15, giới tính nam, nơi sinh Đà Nẵng, loại lịch **dương lịch** | 
+| 2 | Dữ liệu hợp lệ → phân tích học tập/sự nghiệp ngành CNTT | `interpret_study_and_career["05/11/2001", "08:15", "nam", "Đà Nẵng", "solar", "Công nghệ thông tin"]` | *Nội dung do Gemini sinh — *chưa có thông tin* |
 
 **Kỳ vọng telemetry:** `iterations=3, tool_calls=2, guardrail=False`
 
-**Đây là bằng chứng quyết định cho Agentic Fit.** Baseline **bỏ trắng bước 1** rồi biến bước 2 thành lời khuyên chung. Agent **bắc cầu được** vì Observation bước 1 được ghép vào `transcript` (`src/app.py:387`) và trở thành ngữ cảnh cho Thought bước 2. Cơ chế này quan sát được trực tiếp trong code, không cần suy đoán.
 
 ---
 
