@@ -183,10 +183,28 @@ class OfflineAstrologyProvider:
                 "\"nam\", \"Đà Nẵng\", \"solar\", \"công nghệ thông tin\"]"
             )
         if "tử vi tổng quan" in text:
+            date_match = re.search(r"\b(\d{2}/\d{2}/\d{4})\b", prompt)
+            time_match = re.search(r"\b(\d{2}:\d{2})\b", prompt)
+            gender_match = re.search(r"cho\s+(nam|nữ)\s+sinh", text)
+            place_match = re.search(r"\btại\s+(.+?),\s*dùng\s+", prompt, re.IGNORECASE)
+            calendar_type = "lunar" if "âm lịch" in text else "solar"
+            if not all((date_match, time_match, gender_match, place_match)):
+                return (
+                    "Thought: Chưa trích xuất đủ thông tin sinh.\n"
+                    "Final Answer: Vui lòng kiểm tra ngày, giờ, giới tính và nơi sinh. "
+                    f"{DISCLAIMER}"
+                )
+            arguments = [
+                date_match.group(1),
+                time_match.group(1),
+                gender_match.group(1),
+                place_match.group(1).strip(),
+                calendar_type,
+                "Luận giải tổng quan",
+            ]
             return (
                 "Thought: Cần tool luận giải tổng quan theo thông tin sinh.\n"
-                "Action: interpret_tuvi_overview[\"12/08/2003\", \"14:30\", \"nữ\", "
-                "\"Hà Nội\", \"solar\", \"Luận giải tổng quan\"]"
+                f"Action: interpret_tuvi_overview[{', '.join(repr(value) for value in arguments)}]"
             )
         return (
             "Thought: Chưa đủ dữ liệu sinh bắt buộc.\n"
@@ -395,7 +413,57 @@ def _parse_cli_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Demo Chatbot Baseline và ReAct Agent")
     parser.add_argument("--mode", choices=("baseline", "agent", "both"), default="both")
     parser.add_argument("--case", type=int, help="ID test case; mặc định chạy tất cả")
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Nhập thông tin sinh và nhận luận giải tử vi tổng quan",
+    )
     return parser.parse_args()
+
+
+def _read_required(label: str) -> str:
+    """Read a required interactive value without accepting blank input."""
+    while True:
+        value = input(label).strip()
+        if value:
+            return value
+        print("Thông tin này không được để trống.")
+
+
+def run_interactive(provider) -> AgentResult | None:
+    """Collect birth information, validate it, then run an overview analysis."""
+    print("\n" + "=" * 58)
+    print("NHẬP THÔNG TIN SINH ĐỂ LUẬN GIẢI TỬ VI")
+    print("=" * 58)
+
+    birth_date = _read_required("Ngày sinh (DD/MM/YYYY): ")
+    birth_time = _read_required("Giờ sinh (HH:MM): ")
+    gender = _read_required("Giới tính (nam/nữ): ")
+    birth_place = _read_required("Nơi sinh: ")
+    calendar_input = input("Loại lịch (solar/lunar, mặc định solar): ").strip()
+    calendar_type = calendar_input or "solar"
+
+    validation = _execute_tool(
+        "validate_birth_info",
+        [birth_date, birth_time, gender, birth_place, calendar_type],
+        {},
+    )
+    print(f"\nKiểm tra dữ liệu:\n{validation}")
+    if validation.startswith("TOOL_ERROR"):
+        print("Không thể luận giải cho đến khi thông tin sinh hợp lệ.")
+        return None
+
+    query = (
+        f"Hãy luận giải tử vi tổng quan cho {gender} sinh ngày {birth_date} "
+        f"lúc {birth_time} tại {birth_place}, dùng "
+        f"{'dương lịch' if calendar_type.lower() == 'solar' else 'âm lịch'}."
+    )
+    result = run_react_agent(query, provider)
+    print(
+        f"Telemetry: iterations={result.iterations}, "
+        f"tool_calls={result.tool_calls}, guardrail={result.stopped_by_guardrail}"
+    )
+    return result
 
 
 def main() -> int:
@@ -418,6 +486,15 @@ def main() -> int:
     print("BÀI LAB 3: CHATBOT VS REACT AGENT")
     print("=" * 58)
     print(f"Provider: {provider.__class__.__name__} (Model: {model_name})")
+
+    if args.interactive:
+        try:
+            run_interactive(provider)
+        except (EOFError, KeyboardInterrupt):
+            print("\nĐã hủy nhập thông tin.")
+            return 130
+        return 0
+
     print(f"Đã tải {len(tests)} test case.")
 
     for case in tests:
