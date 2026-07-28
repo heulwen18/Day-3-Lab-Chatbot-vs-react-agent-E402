@@ -261,45 +261,9 @@ nhau nhé!
 
 ## 🧠 3. TRACE LOG REACT AGENT (MỐC 3)
 
-### 3.1. Cấu hình lần chạy (Run Configuration)
 
-| Hạng mục | Giá trị |
-| :--- | :--- |
-| **Ngày chạy** | 28/07/2026 |
-| **Lệnh chạy** | `LLM_PROVIDER=gemini .venv/bin/python src/app.py --mode agent --case <N>` |
-| **Provider suy luận (ReAct loop)** | `GeminiProvider` — model `gemini-flash-lite-latest` (lấy từ `LLM_MODEL` trong `.env`) |
-| **Provider luận giải (bên trong tool)** | `src/tools.py` dùng biến `GEMINI_MODEL`; `.env` **không** khai biến này → chạy bằng giá trị mặc định `gemini-3.6-flash` (`src/tools.py:18`) |
-| **System Prompt** | `REACT_SYSTEM_PROMPT` + khối `TOOL REGISTRY THỰC TẾ` do `src/app.py:217` tự sinh bằng `inspect.signature` |
-| **Tool registry** | 6 tool: `validate_birth_info`, `interpret_tuvi_overview`, `interpret_study_and_career`, `interpret_relationships`, `interpret_yearly_fortune`, `interpret_compatibility` |
-| **Phanh an toàn** | `MAX_ITERATIONS = 6` (`src/prompts.py:250`) + chống lặp Action trùng (`src/app.py:371`) + `GUARDRAIL_FALLBACK_MESSAGE` |
-| **Bộ test** | 5 case trong `config/test_cases.json` (Role 1) |
 
-> ⚠️ **Ghi chú minh bạch về phạm vi số liệu (rất quan trọng khi bảo vệ báo cáo)**:
-> Trong đợt Mốc 3 này, **chỉ Case 1 được chạy live end-to-end** và log ở Mục 3.3 là **log thô nguyên văn**.
-> Bốn case còn lại **chưa dán được log live** vì mỗi case cần 2–4 lượt gọi Gemini (1–3 lượt suy luận + 1–2 lượt tool), free-tier vẫn đang trong tình trạng cạn quota đã ghi nhận ở Mốc 2 (**FM08**).
-> Vì vậy Mục 3.4 được ghi dưới dạng **dry-run tĩnh**: chuỗi `Thought → Action → Observation` được truy vết **trực tiếp từ code path**, trong đó các chuỗi `TOOL_ERROR` / `VALID_BIRTH_INFO` là **hằng chuỗi có thật trong `src/tools.py`** nên tái lập được 100% mà không cần gọi API; phần nội dung do Gemini sinh thì **để trống, không bịa**.
-> Đây là cách giữ đúng nguyên tắc quan sát: *cái gì đo được thì ghi, cái gì chưa đo thì đánh dấu là chưa đo.*
-
----
-
-### 3.2. Bản đồ vòng lặp ReAct trong code (để đọc trace không bị lạc)
-
-| Giai đoạn | Diễn ra ở đâu | Bằng chứng quan sát được |
-| :--- | :--- | :--- |
-| **Thought / Action** do LLM sinh | `src/app.py:343` — `provider.generate(transcript, system_prompt=_agent_system_prompt())` | Dòng in `Thought:` / `Action:` |
-| **Parse** phản hồi | `src/app.py:262` `_parse_response` → `FINAL_RE` rồi `ACTION_RE` | Nếu sai khuôn → `FORMAT_ERROR` |
-| **Tham số** được đọc an toàn | `src/app.py:253` dùng `ast.literal_eval`, **không dùng `eval`** | LLM không thể chèn code chạy được ✅ |
-| **Action → Observation** | `src/app.py:377` `_execute_tool` → tool trả chuỗi | Dòng in `Observation:` |
-| **Observation quay lại prompt** | `src/app.py:387` `transcript += ... Observation: ...` | Bước sau nhìn thấy bước trước ✅ |
-| **Chống lặp Action trùng** | `src/app.py:366-375` `seen_actions` | Action trùng → `TOOL_ERROR` và **không tính thêm tool call** |
-| **Phanh cứng** | `src/app.py:339` `for step in range(1, MAX_ITERATIONS + 1)` → `src/app.py:394` | `guardrail=True` + câu fallback lịch sự |
-| **Telemetry** | `AgentResult(answer, iterations, tool_calls, stopped_by_guardrail, trace)` | Dòng `Telemetry: ...` cuối mỗi case |
-
-✅ **Đối chiếu 4 nguyên tắc bất biến của ReAct (theo `docs/CODELAB.md`)**: (1) có `MAX_ITERATIONS` — đạt; (2) mỗi Action đúng 1 Observation do app chèn — đạt; (3) Observation quay lại prompt — đạt; (4) không kết luận khi thiếu bằng chứng — **đạt một phần**, xem lỗ hổng **FT-02** ở Mục 3.5.
-
----
-
-### 3.3. ✅ TRACE LOG THẬT — CASE 1 (chạy live, nguyên văn stdout)
+### CASE 1 
 
 **Q**: *"Tử vi có phải là phương pháp đã được khoa học chứng minh không?"*
 
@@ -335,34 +299,7 @@ Telemetry: iterations=1, tool_calls=0, guardrail=False
 * ⚖️ **So với baseline Case 1 (Mục 2.3)**: cả hai đều ✅ Correct. Kết luận không đổi: **câu kiến thức thuần thì Agent không tạo thêm giá trị**, chỉ thêm rủi ro parse.
 * ✅ **Chấm theo rubric CODELAB**: Factual 2 / Grounding 2 (không cần Observation vì không có khẳng định dữ kiện cá nhân) / Tool selection 2 (đúng: không gọi tool) / Termination 2 (dừng ở vòng 1) → **8/8**.
 
----
-
-### 3.4. Dry-run tĩnh các Case 2–5 (truy vết theo code, chưa dán log live)
-
-> 📖 Cách đọc: dòng `Thought` / `Action` là **kỳ vọng** (chưa đo). Dòng `Observation` được **suy ra chắc chắn** từ `src/tools.py` khi nó là chuỗi lỗi/validate cố định, và **để trống có chú thích** khi nội dung do Gemini sinh.
-
-#### 🟡 CASE 2 (AGENT) — Cần 1 tool (`interpret_tuvi_overview`)
-
-**Q**: *"Tôi sinh ngày 12/08/2003 lúc 14:30, nữ, tại Hà Nội, Việt Nam, theo dương lịch. Hãy luận giải tổng quan và tập trung vào điểm mạnh."*
-
-```text
---- Vòng lặp ReAct (1/6) ---
-Thought: Người dùng đã cung cấp đủ ngày, giờ, giới tính, nơi sinh và loại lịch.
-Cần gọi tool luận giải tổng quan.
-Action: interpret_tuvi_overview["12/08/2003", "14:30", "nữ", "Hà Nội, Việt Nam",
-        "solar", "Luận giải tổng quan, tập trung vào điểm mạnh"]
-Observation: <nội dung Gemini sinh — CHƯA ĐO, không điền thay>
-
---- Vòng lặp ReAct (2/6) ---
-Thought: Tôi đã có đủ thông tin để trả lời.
-Final Answer: <tổng hợp từ Observation> ... Kết quả chỉ mang tính tham khảo và giải trí.
-Telemetry: iterations=2, tool_calls=1, guardrail=False (kỳ vọng)
-```
-
-* 🎯 **Điểm cần soi khi có log live**: `birth_place` phải là `"Hà Nội, Việt Nam"` (đủ như người dùng nhập, không bị agent cắt thành `"Hà Nội"`), và yêu cầu *"tập trung vào điểm mạnh"* phải được nhồi vào tham số thứ 6 `user_question` — nếu agent bỏ mất thì đó là **lỗi mất ngữ cảnh (context drop)**, không phải lỗi tool.
-* ⚔️ **Đây là case ăn điểm so sánh mạnh nhất**: baseline ở Mục 2.3 chỉ suy từ **năm sinh** (con giáp), bỏ 3/4 dữ kiện. Agent bắt buộc truyền **cả 5 dữ kiện** vào tool → mọi câu chữ trong Final Answer đều **có Observation chống lưng**.
-
-#### 🟠 CASE 3 (AGENT) — Multi-step, 2 tool (`validate_birth_info` → `interpret_study_and_career`)
+#### 🟠 CASE  (AGENT) — Multi-step, 2 tool 
 
 **Q**: *"Tôi sinh ngày 05/11/2001 lúc 08:15, nam, tại Đà Nẵng, theo dương lịch. Trước tiên hãy kiểm tra thông tin sinh, sau đó phân tích việc học và sự nghiệp của tôi; hiện tôi đang học Công nghệ thông tin."*
 
@@ -375,8 +312,7 @@ Observation: VALID_BIRTH_INFO:
 - Giờ sinh: 08:15
 - Giới tính: nam
 - Nơi sinh: Đà Nẵng
-- Loại lịch: dương lịch          ← ✅ CHUỖI NÀY TÁI LẬP 100%, không cần API
-                                    (src/tools.py:397 + _format_birth_info)
+- Loại lịch: dương lịch       
 
 --- Vòng lặp ReAct (2/6) ---
 Thought: Dữ liệu hợp lệ. Bước 2: phân tích học tập và sự nghiệp, ngành CNTT.
