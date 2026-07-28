@@ -31,7 +31,7 @@
 
 ---
 
-### 2.3. Nhật ký thô từng câu (Raw Log)
+### Nhật ký thô từng câu (Raw Log)
 
 #### 🟢 CASE 1 — Câu đơn giản
 
@@ -158,7 +158,7 @@ trí hoặc cách xem cung hoàng đạo, cứ cho mình biết nhé!
 
 ---
 
-### 2.4. Kiểm chứng dữ kiện — Chatbot có ảo giác không?
+### Kiểm chứng dữ kiện — Chatbot có ảo giác không?
 
 Các con số/thuật ngữ mà Chatbot tự đưa ra (không hề có tool xác minh) được đối chiếu thủ công:
 
@@ -178,7 +178,7 @@ Các con số/thuật ngữ mà Chatbot tự đưa ra (không hề có tool xác
 
 ---
 
-### 2.5. Kết luận Mốc 2 — Tại sao phải lên ReAct Agent?
+### Kết luận Mốc 2 — Tại sao phải lên ReAct Agent?
 
 | Nhu cầu thật của bài toán | Chatbot gốc làm được? | Cần tool nào (Mốc 3) |
 | :--- | :---: | :--- |
