@@ -130,27 +130,198 @@
     border: 2px solid rgba(36,26,6,.35); border-top-color: #241a06; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .result-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px; display: none; }
-  .result-heading { font-family: 'Playfair Display', serif; font-style: italic; font-weight: 700; font-size: 22px; margin: 0 0 20px; color: #fbf7ee; }
+  .result-panel {
+    background: linear-gradient(180deg, rgba(35,44,82,.94), rgba(27,35,64,.98));
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 28px;
+    display: none;
+    box-shadow: 0 24px 60px rgba(6,10,24,.28);
+  }
+  .result-heading {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 22px;
+    margin: 0 0 18px;
+    color: #fbf7ee;
+  }
 
-  .timeline { list-style: none; margin: 0 0 22px; padding: 0 0 0 4px; }
-  .timeline-item { position: relative; padding: 0 0 18px 26px; border-left: 2px solid var(--border); }
-  .timeline-item:last-child { border-left-color: transparent; padding-bottom: 0; }
-  .timeline-item .dot { position: absolute; left: -7px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--text-muted); }
-  .timeline-item.tool .dot { background: var(--teal); }
-  .timeline-item.llm .dot { background: var(--gold); }
-  .timeline-item.baseline .dot { background: var(--rose); }
-  .timeline-item.guardrail .dot { background: var(--rose); }
-  .timeline-item.progress .dot { background: var(--text-muted); animation: pulse 1.4s ease-in-out infinite; }
+  .final-answer-card {
+    background:
+      radial-gradient(circle at top right, rgba(63,167,150,.12), transparent 28%),
+      linear-gradient(180deg, rgba(35,44,82,.98), rgba(21,28,52,.98));
+    border: 1px solid rgba(201,161,95,.26);
+    border-radius: 18px;
+    padding: 20px 22px 18px;
+    margin-bottom: 22px;
+    box-shadow: 0 20px 48px rgba(6,10,24,.22);
+  }
+  .result-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  .result-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .result-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(169,175,201,.08);
+    border: 1px solid rgba(169,175,201,.12);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .result-chip strong { color: #fff3d4; font-weight: 600; }
+  .final-answer-card .section-label,
+  .trace-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+  .final-answer-body { font-size: 14.5px; line-height: 1.8; color: #f5f1e8; }
+  .final-answer-body h3 {
+    margin: 18px 0 10px;
+    font-size: 16px;
+    line-height: 1.35;
+    color: #fff4d6;
+  }
+  .final-answer-body p { margin: 0 0 10px; }
+  .final-answer-body ul,
+  .final-answer-body ol { margin: 8px 0 12px 22px; padding: 0; }
+  .final-answer-body li { margin: 6px 0; }
+  .final-answer-body hr {
+    border: 0;
+    border-top: 1px solid rgba(201,161,95,.25);
+    margin: 14px 0;
+  }
+  .final-answer-body strong { color: #fff7e8; }
+  .disclaimer-line {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(201,161,95,.28);
+    font-size: 12.5px;
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  .trace-label { margin-top: 2px; margin-bottom: 12px; }
+  .timeline {
+    list-style: none;
+    margin: 0 0 18px;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+  }
+  .timeline-item {
+    position: relative;
+    background: rgba(18,23,43,.52);
+    border: 1px solid rgba(51,63,110,.9);
+    border-radius: 14px;
+    padding: 14px 16px 14px 18px;
+  }
+  .timeline-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 14px 0 0 14px;
+    background: var(--border);
+  }
+  .timeline-item.tool::before { background: var(--teal); }
+  .timeline-item.llm::before { background: var(--gold); }
+  .timeline-item.baseline::before { background: var(--rose); }
+  .timeline-item.guardrail::before { background: var(--rose); }
+  .timeline-item.progress::before { background: var(--text-muted); }
+  .timeline-item .dot { display: none; }
+  .timeline-item.progress { opacity: .95; }
   @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(169,175,201,.5); } 50% { box-shadow: 0 0 0 6px rgba(169,175,201,0); } }
   @media (prefers-reduced-motion: reduce) { .timeline-item.progress .dot { animation: none; } .spin { animation: none; } }
 
-  .timeline-item .step-title { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--text); margin-bottom: 4px; }
-  .timeline-item .step-detail { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; white-space: pre-wrap; font-family: 'IBM Plex Mono', monospace; }
-
-  .final-answer-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; }
-  .final-answer-body { font-size: 14.5px; line-height: 1.75; white-space: pre-wrap; }
-  .disclaimer-line { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); font-size: 12.5px; font-style: italic; color: var(--gold); }
+  .timeline-item .step-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--text);
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+  .step-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: .02em;
+  }
+  .step-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(169,175,201,.08);
+    color: var(--text-muted);
+    border: 1px solid rgba(169,175,201,.12);
+  }
+  .step-summary {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: pre-wrap;
+  }
+  .timeline-item details {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(51,63,110,.7);
+  }
+  .timeline-item summary {
+    list-style: none;
+    cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--gold);
+    user-select: none;
+  }
+  .timeline-item summary::-webkit-details-marker { display: none; }
+  .timeline-item summary::after {
+    content: "▾";
+    float: right;
+    color: var(--text-muted);
+  }
+  .timeline-item details[open] summary::after { content: "▴"; }
+  .timeline-item .step-detail {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    font-family: 'IBM Plex Mono', monospace;
+    opacity: .95;
+  }
 
   .telemetry { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); margin: 16px 0 0; }
 
@@ -160,9 +331,86 @@
   }
   .prompt-toggle:hover { color: var(--gold); }
   .prompt-box {
-    margin-top: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
-    padding: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted);
-    white-space: pre-wrap; max-height: 280px; overflow-y: auto; display: none;
+    margin-top: 12px;
+    background: linear-gradient(180deg, rgba(18,23,43,.94), rgba(14,18,34,.98));
+    border: 1px solid rgba(51,63,110,.85);
+    border-radius: 16px;
+    padding: 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+    display: none;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .debug-panel {
+    display: grid;
+    gap: 12px;
+  }
+  .debug-panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .debug-panel-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: #fbf7ee;
+    margin: 0;
+  }
+  .debug-panel-subtitle {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .debug-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  @media (max-width: 640px) {
+    .debug-grid { grid-template-columns: 1fr; }
+    .result-card-header { flex-direction: column; }
+    .result-chips { justify-content: flex-start; }
+  }
+  .debug-card {
+    background: rgba(35,44,82,.62);
+    border: 1px solid rgba(51,63,110,.72);
+    border-radius: 14px;
+    padding: 12px 13px;
+  }
+  .debug-card .kicker {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .debug-card .value {
+    font-family: 'Be Vietnam Pro', sans-serif;
+    color: #f4efe3;
+    line-height: 1.55;
+    word-break: break-word;
+  }
+  .debug-card .value code {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #ffe9b3;
+    background: rgba(201,161,95,.08);
+    border: 1px solid rgba(201,161,95,.16);
+    border-radius: 999px;
+    padding: 2px 6px;
+    margin-right: 4px;
+  }
+  .debug-note {
+    border-top: 1px solid rgba(51,63,110,.6);
+    padding-top: 12px;
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--text-muted);
   }
 </style>
 </head>
@@ -277,11 +525,15 @@
       <h2 class="result-heading" id="result-heading"></h2>
       <ol class="timeline" id="timeline"></ol>
       <div class="final-answer-card" id="final-answer-card" style="display:none;">
+        <div class="result-card-header">
+          <div class="section-label">Kết quả cuối</div>
+          <div class="result-chips" id="result-chips"></div>
+        </div>
         <div class="final-answer-body" id="final-answer-body"></div>
         <div class="disclaimer-line" id="disclaimer-line"></div>
       </div>
       <p class="telemetry" id="telemetry"></p>
-      <button type="button" class="prompt-toggle" id="prompt-toggle">▾ Xem prompt hệ thống của agent</button>
+      <button type="button" class="prompt-toggle" id="prompt-toggle">▾ Xem thông tin kỹ thuật</button>
       <div class="prompt-box" id="prompt-box"></div>
     </section>
   </div>
@@ -986,6 +1238,7 @@ const els = {
   resultHeading: document.getElementById("result-heading"),
   timeline: document.getElementById("timeline"),
   finalCard: document.getElementById("final-answer-card"),
+  resultChips: document.getElementById("result-chips"),
   finalBody: document.getElementById("final-answer-body"),
   disclaimerLine: document.getElementById("disclaimer-line"),
   telemetry: document.getElementById("telemetry"),
@@ -1081,13 +1334,173 @@ function resetResultPanel() {
   els.promptBox.textContent = "";
   els.promptToggle.textContent = "▾ Xem prompt hệ thống của agent";
   els.resultPanel.style.display = "block";
+  els.resultPanel.insertBefore(els.finalCard, els.timeline);
+}
+
+function summarizeDetail(detail) {
+  const text = String(detail || "").replace(/\n+/g, " ").trim();
+  if (!text) return "";
+  if (text.length <= 180) return text;
+  return `${text.slice(0, 177)}...`;
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function inlineMarkdown(text) {
+  return escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>");
+}
+
+function renderMarkdownLite(rawText) {
+  const lines = String(rawText || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n");
+
+  const blocks = [];
+  let listType = null;
+  let listItems = [];
+  let paragraph = [];
+
+  const flushParagraph = () => {
+    if (!paragraph.length) return;
+    blocks.push(`<p>${paragraph.map((line) => inlineMarkdown(line)).join("<br>")}</p>`);
+    paragraph = [];
+  };
+
+  const flushList = () => {
+    if (!listType || !listItems.length) return;
+    const items = listItems.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("");
+    blocks.push(`<${listType}>${items}</${listType}>`);
+    listType = null;
+    listItems = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+
+    const headingMatch = line.match(/^#{1,6}\s+(.+)$/);
+    if (headingMatch) {
+      flushParagraph();
+      flushList();
+      blocks.push(`<h3>${inlineMarkdown(headingMatch[1])}</h3>`);
+      continue;
+    }
+
+    if (/^---+$/.test(line)) {
+      flushParagraph();
+      flushList();
+      blocks.push("<hr>");
+      continue;
+    }
+
+    const orderedMatch = line.match(/^\d+\.\s+(.+)$/);
+    if (orderedMatch) {
+      flushParagraph();
+      if (listType && listType !== "ol") flushList();
+      listType = "ol";
+      listItems.push(orderedMatch[1]);
+      continue;
+    }
+
+    const bulletMatch = line.match(/^[*-]\s+(.+)$/);
+    if (bulletMatch) {
+      flushParagraph();
+      if (listType && listType !== "ul") flushList();
+      listType = "ul";
+      listItems.push(bulletMatch[1]);
+      continue;
+    }
+
+    flushList();
+    paragraph.push(line);
+  }
+
+  flushParagraph();
+  flushList();
+
+  return blocks.join("");
+}
+
+function setFinalAnswer(rawText) {
+  const content = String(rawText || "").split(DISCLAIMER)[0].trim();
+  els.finalBody.innerHTML = renderMarkdownLite(content);
+}
+
+function setResultChips(chips) {
+  els.resultChips.innerHTML = chips
+    .map(([label, value]) => `<span class="result-chip"><strong>${escapeHtml(label)}</strong>${escapeHtml(value)}</span>`)
+    .join("");
+}
+
+function truncateForPanel(text, maxLen = 140) {
+  const safe = String(text || "").replace(/\s+/g, " ").trim();
+  if (safe.length <= maxLen) return safe;
+  return `${safe.slice(0, maxLen - 1)}…`;
+}
+
+function renderDebugPanel({ title, subtitle, cards, note }) {
+  const cardsHtml = cards
+    .map(
+      ({ kicker, value }) => `
+        <div class="debug-card">
+          <span class="kicker">${escapeHtml(kicker)}</span>
+          <div class="value">${value}</div>
+        </div>`
+    )
+    .join("");
+
+  els.promptBox.innerHTML = `
+    <div class="debug-panel">
+      <div class="debug-panel-header">
+        <div>
+          <h3 class="debug-panel-title">${escapeHtml(title)}</h3>
+          <div class="debug-panel-subtitle">${escapeHtml(subtitle)}</div>
+        </div>
+      </div>
+      <div class="debug-grid">${cardsHtml}</div>
+      <div class="debug-note">${escapeHtml(note)}</div>
+    </div>`;
+}
+
+function labelForKind(kind) {
+  if (kind === "tool") return "Tool";
+  if (kind === "llm") return "LLM";
+  if (kind === "baseline") return "Baseline";
+  if (kind === "guardrail") return "Guardrail";
+  if (kind === "progress") return "Đang chạy";
+  return "Step";
 }
 
 function appendTimelineItem({ kind, title, detail }) {
   const li = document.createElement("li");
   li.className = `timeline-item ${kind}`;
-  li.innerHTML = `<span class="dot"></span><div class="step-title"></div><div class="step-detail"></div>`;
+  li.innerHTML = `
+    <div class="step-meta">
+      <span class="step-badge">${labelForKind(kind)}</span>
+      <span>${kind === "tool" ? "Kết quả công cụ" : kind === "llm" ? "Suy luận mô hình" : kind === "baseline" ? "Trả lời trực tiếp" : kind === "guardrail" ? "Phanh an toàn" : title}</span>
+    </div>
+    <div class="step-title"></div>
+    <div class="step-summary"></div>
+    <details>
+      <summary>Xem chi tiết</summary>
+      <div class="step-detail"></div>
+    </details>`;
   li.querySelector(".step-title").textContent = title;
+  li.querySelector(".step-summary").textContent = summarizeDetail(detail);
   li.querySelector(".step-detail").textContent = detail;
   els.timeline.appendChild(li);
   return li;
@@ -1116,6 +1529,23 @@ els.promptToggle.addEventListener("click", () => {
   els.promptToggle.textContent = visible ? "▾ Xem prompt hệ thống của agent" : "▴ Ẩn prompt hệ thống của agent";
 });
 
+els.promptToggle.addEventListener("click", () => {
+  const visible = els.promptBox.style.display === "block";
+  els.promptToggle.textContent = visible ? "▾ Xem thông tin kỹ thuật" : "▴ Ẩn thông tin kỹ thuật";
+});
+
+function resetResultPanel() {
+  els.timeline.innerHTML = "";
+  els.finalCard.style.display = "none";
+  els.resultChips.innerHTML = "";
+  els.telemetry.textContent = "";
+  els.promptBox.style.display = "none";
+  els.promptBox.innerHTML = "";
+  els.promptToggle.textContent = "▾ Xem thông tin kỹ thuật";
+  els.resultPanel.style.display = "block";
+  els.resultPanel.insertBefore(els.finalCard, els.timeline);
+}
+
 els.form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -1142,7 +1572,7 @@ els.form.addEventListener("submit", async (e) => {
   try {
     const query = buildNaturalQuestion(p1, p2);
 
-    if (state.mode === "baseline") {
+  if (state.mode === "baseline") {
       els.resultHeading.textContent = "Chatbot cơ bản trả lời";
       appendTimelineItem({
         kind: "baseline",
@@ -1150,11 +1580,28 @@ els.form.addEventListener("submit", async (e) => {
         detail: "Chatbot cơ bản không có tool xác thực, chỉ có một lượt gọi mô hình duy nhất trên câu hỏi thô.",
       });
       const answer = await runBaselineChatbot(query);
-      els.finalBody.textContent = answer.split(DISCLAIMER)[0].trim();
+      setFinalAnswer(answer);
       els.disclaimerLine.textContent = DISCLAIMER;
       els.finalCard.style.display = "";
       els.telemetry.textContent = "Số lần gọi mô hình: 1 · Không dùng tool";
       els.promptBox.textContent = `SYSTEM:\n${CHATBOT_BASELINE_PROMPT}\n\nUSER:\n${query}`;
+      els.promptBox.innerHTML = "";
+      renderDebugPanel({
+        title: "Thông tin kỹ thuật",
+        subtitle: "Bản cơ bản chỉ gọi mô hình một lần và không đi qua tool.",
+        cards: [
+          { kicker: "Chế độ", value: "<code>baseline</code>" },
+          { kicker: "Câu hỏi", value: escapeHtml(truncateForPanel(query, 180)) },
+          { kicker: "Luồng", value: "1 lần gọi mô hình, không có ReAct, không có Observation." },
+          { kicker: "Kết quả", value: "Hiển thị nội dung đã được làm sạch Markdown." },
+        ],
+        note: "Phần debug đã được rút gọn để không còn lộ prompt thô.",
+      });
+      setResultChips([
+        ["Mode", "Baseline"],
+        ["Call", "1"],
+        ["Tool", "0"],
+      ]);
     } else {
       els.resultHeading.textContent = "ReAct Agent trả lời";
       const result = await runReactAgent(query, (evt) => {
@@ -1175,11 +1622,30 @@ els.form.addEventListener("submit", async (e) => {
       });
 
       const answer = ensureDisclaimer(result.answer);
-      els.finalBody.textContent = answer.split(DISCLAIMER)[0].trim();
+      setFinalAnswer(answer);
       els.disclaimerLine.textContent = DISCLAIMER;
       els.finalCard.style.display = "";
       els.telemetry.textContent = `Số bước: ${result.iterations} · Số lần gọi tool: ${result.toolCalls} · Guardrail: ${result.stoppedByGuardrail ? "có" : "không"}`;
       els.promptBox.textContent = `SYSTEM:\n${result.systemPrompt}\n\nTRANSCRIPT CUỐI CÙNG:\n${result.transcript}`;
+      els.promptBox.innerHTML = "";
+      renderDebugPanel({
+        title: "Thông tin kỹ thuật",
+        subtitle: "ReAct chạy theo vòng Thought → Action → Observation, có phanh an toàn.",
+        cards: [
+          { kicker: "Chế độ", value: "<code>react</code>" },
+          { kicker: "Bước chạy", value: `<code>${escapeHtml(String(result.iterations))}</code> bước` },
+          { kicker: "Tool calls", value: `<code>${escapeHtml(String(result.toolCalls))}</code> lần` },
+          { kicker: "Guardrail", value: result.stoppedByGuardrail ? "<code>Đã kích hoạt</code>" : "<code>Không</code>" },
+          { kicker: "Câu hỏi", value: escapeHtml(truncateForPanel(query, 180)) },
+          { kicker: "Trace", value: "Xem từng bước trong timeline bên trên khi cần kiểm tra chi tiết." },
+        ],
+        note: "Transcript và prompt gốc đã được ẩn để giao diện sạch hơn.",
+      });
+      setResultChips([
+        ["Mode", "ReAct"],
+        ["Steps", String(result.iterations)],
+        ["Tool", String(result.toolCalls)],
+      ]);
     }
   } catch (err) {
     els.errorList.innerHTML = `<li>${(err.message || err).toString()}</li>`;
