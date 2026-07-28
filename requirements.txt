@@ -3,4 +3,3 @@ openai
 anthropic
 python-dotenv
 requests
-streamlit>=1.57

@@ -26,7 +26,6 @@ AstroAgent là ứng dụng minh họa sự khác nhau giữa **Chatbot Baseline
 
 ```text
 project/
-├── .streamlit/
 ├── config/
 │   └── test_cases.json
 ├── docs/
@@ -122,7 +121,6 @@ Các thư viện chính:
 python-dotenv
 google-genai
 requests
-streamlit
 ```
 
 Khi dùng OpenAI hoặc Anthropic:
